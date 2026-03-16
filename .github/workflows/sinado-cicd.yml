@@ -30,7 +30,7 @@ jobs:
       run: ls -R Sinado.Tests/bin/
 
     - name: Test
-      run: dotnet test --solution sinado.sln --configuration Release --report-trx
+      run: dotnet test --solution sinado.sln --no-build --report-trx
 
     # 1. You MUST "Publish" the app to a folder to prepare it for Azure
     - name: Publish API
