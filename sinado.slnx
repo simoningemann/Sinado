@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Sinado.Api/Sinado.Api.csproj" />
+  <Project Path="Sinado.Core/Sinado.Core.csproj" />
+  <Project Path="Sinado.Tests/Sinado.Tests.csproj" />
+</Solution>
