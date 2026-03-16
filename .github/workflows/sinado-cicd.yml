@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build-and-test:
+  build-test-deploy: # Combined into one job
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -19,22 +19,24 @@ jobs:
       with:
         dotnet-version: 10.0.x
 
-    - name: Restore & Build
-      run: |
-        dotnet restore sinado.sln
-        dotnet build sinado.sln --no-restore --configuration Release
+    - name: Restore
+      run: dotnet restore sinado.sln
+
+    - name: Build
+      run: dotnet build sinado.sln --no-restore --configuration Release
 
     - name: Test
-      run: dotnet test sinado.sln --no-build --report-trx
+      run: dotnet test --solution sinado.sln --no-build --report-trx
 
-  deploy-to-azure:
-    needs: build-and-test
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: 'Deploy to Azure App Service'
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: 'sinado-api' # You'll name this in Azure
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: .
+    # 1. You MUST "Publish" the app to a folder to prepare it for Azure
+    - name: Publish API
+      run: dotnet publish Sinado.Api/Sinado.Api.csproj -c Release -o ./publish-folder
+
+    # 2. Deploy only if we are on the main branch
+    - name: 'Deploy to Azure App Service'
+      if: github.ref == 'refs/heads/main'
+      uses: azure/webapps-deploy@v3
+      with:
+        app-name: 'sinado-api'
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        package: ./publish-folder # Point specifically to the published code
