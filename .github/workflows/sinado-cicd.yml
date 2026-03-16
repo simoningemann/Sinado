@@ -23,10 +23,14 @@ jobs:
       run: dotnet restore sinado.sln
 
     - name: Build
-      run: dotnet build sinado.sln --no-restore --configuration Release
+      run: dotnet build sinado.sln --configuration Release
+
+    # Debug step: list files to ensure the binary exists (optional)
+    - name: List Binaries
+      run: ls -R Sinado.Tests/bin/
 
     - name: Test
-      run: dotnet test --solution sinado.sln --no-build --report-trx
+      run: dotnet test --solution sinado.sln --configuration Release --report-trx
 
     # 1. You MUST "Publish" the app to a folder to prepare it for Azure
     - name: Publish API
