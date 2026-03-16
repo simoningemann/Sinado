@@ -21,11 +21,11 @@ jobs:
 
     - name: Restore & Build
       run: |
-        dotnet restore
-        dotnet build --no-restore --configuration Release
+        dotnet restore sinado.sln
+        dotnet build sinado.sln --no-restore --configuration Release
 
     - name: Run Sinado Tests
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet test sinado.sln --no-build --verbosity normal
 
   deploy-to-azure:
     needs: build-and-test
