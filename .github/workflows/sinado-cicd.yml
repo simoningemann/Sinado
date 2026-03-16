@@ -24,8 +24,8 @@ jobs:
         dotnet restore sinado.sln
         dotnet build sinado.sln --no-restore --configuration Release
 
-    - name: Run Sinado Tests
-      run: dotnet test sinado.sln --no-build --verbosity normal
+    - name: Test
+    run: dotnet test sinado.sln --no-build --report-trx
 
   deploy-to-azure:
     needs: build-and-test
