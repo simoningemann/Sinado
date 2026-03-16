@@ -1,0 +1,16 @@
+---
+description: Sinado Clean Architecture + layering rules
+alwaysApply: true
+---
+
+# Sinado Architecture Rules
+
+- **Core (`Sinado.Core`) is pure**: domain models + business logic + interfaces only. No ASP.NET Core, no EF/DB, no infrastructure dependencies.
+- **API (`Sinado.Api`) stays thin**: controllers should validate inputs and delegate to Core via **MediatR**. Avoid putting business rules in controllers.
+- **Tests (`Sinado.Tests`) are required**: any new feature/behavior added to `Sinado.Core` must have a corresponding unit test in `Sinado.Tests`.
+
+## Design guidance
+
+- Prefer **use-case driven** Core code (commands/queries + handlers) over anemic services.
+- Keep dependencies pointing inward (API → Core, Tests → Core; never Core → API).
+- Domain models should avoid serialization/framework attributes unless unavoidable.

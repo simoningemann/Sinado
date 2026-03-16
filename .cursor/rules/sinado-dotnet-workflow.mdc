@@ -1,0 +1,16 @@
+---
+description: Sinado .NET workflow (build as you go, self-heal)
+globs: **/*.cs, **/*.csproj, **/*.sln
+alwaysApply: false
+---
+
+# .NET Workflow
+
+- **Plan first**: summarize intended changes before editing.
+- **Build as you go**: after each file change, run `dotnet build`.
+- **Self-heal**: if the build fails, fix errors immediately before proceeding.
+
+## Conventions
+
+- Favor async APIs (`Task`/`ValueTask`) where appropriate.
+- Keep public APIs small and intentional; avoid leaking implementation details across projects.
