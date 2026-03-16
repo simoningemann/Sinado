@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sinado – Work Items</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; max-width: 980px; }
+      h1 { margin: 0 0 8px; }
+      .muted { opacity: .75; }
+      .grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+      @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }
+      fieldset { border: 1px solid rgba(127,127,127,.35); border-radius: 10px; padding: 12px 14px; }
+      legend { padding: 0 6px; }
+      label { display: grid; gap: 6px; margin: 8px 0; }
+      input, textarea, select, button { font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(127,127,127,.35); background: transparent; }
+      textarea { min-height: 90px; resize: vertical; }
+      button { cursor: pointer; }
+      button.primary { background: #2563eb; color: white; border-color: #2563eb; }
+      button:disabled { opacity: .6; cursor: not-allowed; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid rgba(127,127,127,.25); vertical-align: top; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .95em; }
+      .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+      .pill { padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(127,127,127,.35); font-size: .85em; }
+      .ok { color: #16a34a; }
+      .bad { color: #dc2626; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    </style>
+  </head>
+  <body>
+    <h1>Sinado – Work Items</h1>
+    <div class="muted">This UI talks to <code>/api/work-items</code> on the same server.</div>
+
+    <div class="grid" style="margin-top: 18px;">
+      <fieldset>
+        <legend>Create</legend>
+        <label>
+          Title
+          <input id="create-title" placeholder="e.g. Implement login" />
+        </label>
+        <label>
+          Description
+          <textarea id="create-description" placeholder="Optional"></textarea>
+        </label>
+        <label>
+          Type
+          <select id="create-type">
+            <option value="Task">Task</option>
+            <option value="Bug">Bug</option>
+            <option value="UserStory">UserStory</option>
+          </select>
+        </label>
+        <div class="row">
+          <button class="primary" id="create-btn">Create work item</button>
+          <span id="create-status" class="mono muted"></span>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>List / Filter</legend>
+        <div class="row">
+          <label style="min-width: 200px;">
+            Status
+            <select id="filter-status">
+              <option value="">(any)</option>
+              <option value="New">New</option>
+              <option value="Active">Active</option>
+              <option value="Resolved">Resolved</option>
+              <option value="Closed">Closed</option>
+            </select>
+          </label>
+          <label style="min-width: 200px;">
+            Type
+            <select id="filter-type">
+              <option value="">(any)</option>
+              <option value="Task">Task</option>
+              <option value="Bug">Bug</option>
+              <option value="UserStory">UserStory</option>
+            </select>
+          </label>
+          <label style="min-width: 120px;">
+            Take
+            <input id="filter-take" type="number" value="50" min="1" max="200" />
+          </label>
+        </div>
+        <div class="row">
+          <button id="refresh-btn">Refresh</button>
+          <span id="list-status" class="mono muted"></span>
+        </div>
+      </fieldset>
+    </div>
+
+    <fieldset style="margin-top: 16px;">
+      <legend>Work Items</legend>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 210px;">Id</th>
+            <th>Title</th>
+            <th style="width: 110px;">Type</th>
+            <th style="width: 110px;">Status</th>
+            <th style="width: 220px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="items-body">
+          <tr><td colspan="5" class="muted">No items yet.</td></tr>
+        </tbody>
+      </table>
+    </fieldset>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+
+      const api = {
+        async list({ status, type, take }) {
+          const params = new URLSearchParams();
+          if (status) params.set("status", status);
+          if (type) params.set("type", type);
+          if (take) params.set("take", String(take));
+          const res = await fetch(`/api/work-items?${params.toString()}`);
+          if (!res.ok) throw new Error(await res.text());
+          return await res.json();
+        },
+        async create({ title, description, type }) {
+          const res = await fetch(`/api/work-items`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ title, description, type })
+          });
+          if (!res.ok) throw new Error(await res.text());
+          return await res.json();
+        },
+        async setStatus(id, status) {
+          const res = await fetch(`/api/work-items/${id}/status`, {
+            method: "PUT",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ status })
+          });
+          if (!res.ok) throw new Error(await res.text());
+          return await res.json();
+        }
+      };
+
+      function setText(el, text, cls) {
+        el.textContent = text ?? "";
+        el.className = "mono " + (cls ?? "muted");
+      }
+
+      function render(items) {
+        const body = $("items-body");
+        body.innerHTML = "";
+        if (!items || items.length === 0) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td colspan="5" class="muted">No items yet.</td>`;
+          body.appendChild(tr);
+          return;
+        }
+
+        for (const w of items) {
+          const tr = document.createElement("tr");
+          const idShort = String(w.id).split("-")[0];
+
+          tr.innerHTML = `
+            <td class="mono" title="${w.id}">${idShort}</td>
+            <td>
+              <div><strong>${escapeHtml(w.title)}</strong></div>
+              ${w.description ? `<div class="muted" style="margin-top:4px;">${escapeHtml(w.description)}</div>` : ""}
+            </td>
+            <td><span class="pill">${w.type}</span></td>
+            <td><span class="pill">${w.status}</span></td>
+            <td>
+              <div class="row">
+                <select data-id="${w.id}" class="status-select">
+                  <option ${w.status === "New" ? "selected" : ""}>New</option>
+                  <option ${w.status === "Active" ? "selected" : ""}>Active</option>
+                  <option ${w.status === "Resolved" ? "selected" : ""}>Resolved</option>
+                  <option ${w.status === "Closed" ? "selected" : ""}>Closed</option>
+                </select>
+                <button data-id="${w.id}" class="apply-status-btn">Apply</button>
+              </div>
+            </td>
+          `;
+          body.appendChild(tr);
+        }
+
+        body.querySelectorAll(".apply-status-btn").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const id = btn.getAttribute("data-id");
+            const select = body.querySelector(`.status-select[data-id='${id}']`);
+            const status = select.value;
+            btn.disabled = true;
+            try {
+              await api.setStatus(id, status);
+              await refresh();
+            } catch (e) {
+              alert(String(e));
+            } finally {
+              btn.disabled = false;
+            }
+          });
+        });
+      }
+
+      function escapeHtml(s) {
+        return String(s)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll("\"", "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      async function refresh() {
+        const status = $("filter-status").value;
+        const type = $("filter-type").value;
+        const take = Number($("filter-take").value || "50");
+        setText($("list-status"), "Loading…", "muted");
+        try {
+          const items = await api.list({ status, type, take });
+          render(items);
+          setText($("list-status"), `Loaded ${items.length}`, "ok");
+        } catch (e) {
+          setText($("list-status"), "Failed", "bad");
+          console.error(e);
+        }
+      }
+
+      $("refresh-btn").addEventListener("click", refresh);
+      $("create-btn").addEventListener("click", async () => {
+        const title = $("create-title").value;
+        const description = $("create-description").value;
+        const type = $("create-type").value;
+        setText($("create-status"), "Creating…", "muted");
+        $("create-btn").disabled = true;
+        try {
+          await api.create({ title, description, type });
+          $("create-title").value = "";
+          $("create-description").value = "";
+          setText($("create-status"), "Created", "ok");
+          await refresh();
+        } catch (e) {
+          setText($("create-status"), "Failed", "bad");
+          alert(String(e));
+        } finally {
+          $("create-btn").disabled = false;
+        }
+      });
+
+      refresh();
+    </script>
+  </body>
+</html>
+
